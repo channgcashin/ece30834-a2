@@ -72,7 +72,7 @@ float plane_intersect(vec3 ro, vec3 rd ) {
 
 vec3 reflection(vec3 vec_in, vec3 normal) {
     // TODO 4, find the formula to calculate the reflected direction
-    return vec_in - 2 * (normal * vec_in) * normal;
+    return vec_in - 2 * dot(normal, vec_in) * normal;
 }
 
 
@@ -184,19 +184,19 @@ vec3 shading(vec3 ro, vec3 rd, int_desc intersect) {
     //          2.1 Go to TODO 4. Implement reflection function.
     //          2.2 Use the reflection function to compute the specular term.
     //          2.3 Use the specular_str, spec_exp in the specular calculation.
-    float diff = (normal.x * light.x) + (normal.y * light.y) + (normal.z * light.z);
-    float mag_norm = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-    float mag_light = sqrt(light.x * light.x + light.y * light.y + light.z * light.z);
-    diff = diff / (mag_norm * mag_light);
-    diff = acos(diff);
-    ret = (ambient + (diffuse_str * diff)) * color * light_color;
+    float diff = max(0.0, dot(normal, normalize(light-pos))) * diffuse_str;
+
+    vec3 ref = reflection(rd, normal);
+    vec3 light = normalize(light - pos);
+    float spec_ang = max(0.0, dot(light, normalize(ref)));
+    float spec = pow(spec_ang, spec_exp) * specular_str;
 
     // TODO 5, reflection effects. Note, you do not need to finish TODO 6 to see the result
     // Steps:
     //      1. What is the ro, rd (ray origin and ray direction) when you compute reflection?
     //      2. Call the ray_scene_intersect(ro, rd) to get the ray-scene intersection results.
     //      3. Replace the light_color term with the intersection result color.
-
+    light_color = ray_scene_intersect(pos, ref).color;
 
     // TODO 6 (Bonus), shadow effect
     // Steps:
@@ -205,6 +205,16 @@ vec3 shading(vec3 ro, vec3 rd, int_desc intersect) {
     //      3. Use the new equation: ret = (ambient + diffuse + specular) * color * light_color * shadow
     //          3.1 If shadow_ret.type is not 0, then it is blocked by some object in the space, give 0.3 as the value for the shadow term
     //          3.2 If shadow_ret.type is 0, then it hits the sky, give 1.0 to shadow
+    int_desc shadow_ret = ray_scene_intersect(pos + light * .01, light);
+    float shadow;
+
+    if(shadow_ret.type != 0) {
+        shadow = 0.3;
+    } else {
+        shadow = 1.0;
+    }
+
+    ret = (ambient + diff + spec) * color * light_color * shadow;
 
     return ret;
 }
